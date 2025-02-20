@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Área do Administrador - Portal SECAJ</title>
+    <!-- Manifest do PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        /* Estilos Gerais */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Cabeçalho */
+        header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        /* Informações do Usuário e Botão Sair */
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logout-button {
+            background-color: #dc3545;
+            padding: 5px 10px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .logout-button:hover {
+            background-color: #c82333;
+        }
+
+        /* Abas de Navegação */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            background-color: #0056b3;
+            padding: 10px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            color: white;
+            border-radius: 4px;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+        }
+
+        .tab:hover {
+            background-color: #004080;
+        }
+
+        .tab.active {
+            background-color: #003366;
+        }
+
+        /* Conteúdo das Abas */
+        .content {
+            display: none;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: 20px;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        /* Formulários */
+        .add-form {
+            margin-bottom: 20px;
+        }
+
+        .add-form input,
+        .add-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .add-form button {
+            width: 100%;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .add-form button:hover {
+            background-color: #218838;
+        }
+
+        /* Listas de Itens */
+        .month-item,
+        .object-item,
+        .priority-item,
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+
+        .month-item:last-child,
+        .object-item:last-child,
+        .priority-item:last-child,
+        .user-item:last-child {
+            border-bottom: none;
+        }
+
+        .month-item input,
+        .object-item input {
+            width: 45%;
+        }
+
+        /* Botões de Ação */
+        .delete-button {
+            background-color: #dc3545;
+            margin-left: 10px;
+        }
+
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+
+        .toggle-button {
+            background-color: #ffc107;
+            color: black;
+        }
+
+        .toggle-button:hover {
+            background-color: #e0a800;
+        }
+
+        /* Prioridade Ativa */
+        .priority-item.active {
+            background-color: #ffcccc; /* Vermelho claro para prioridade ativa */
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .tabs {
+                flex-direction: column;
+            }
+
+            .tab {
+                margin: 5px 0;
+            }
+
+            .content {
+                margin: 10px;
+                padding: 10px;
+            }
+
+            .month-item, .object-item, .priority-item, .user-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .month-item input, .object-item input {
+                width: 100%;
+                margin: 5px 0;
+            }
+
+            .add-form button {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header h1 {
+                font-size: 20px;
+            }
+
+            .logout-button {
+                padding: 4px 8px;
+            }
+
+            .tab {
+                padding: 8px 16px;
+            }
+
+            .add-form input, .add-form textarea {
+                font-size: 14px;
+            }
+
+            .month-item, .object-item, .priority-item, .user-item {
+                font-size: 14px;
+            }
+        }
+    </style>
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Importações do Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD1wD2KTGnM0vWqs8eGiFLQdOaQh77a5uw",
+            authDomain: "portal-secaj.firebaseapp.com",
+            projectId: "portal-secaj",
+            storageBucket: "portal-secaj.firebasestorage.app",
+            messagingSenderId: "580471459735",
+            appId: "1:580471459735:web:3092f388f6d4b3b48afed2",
+            measurementId: "G-CYSXWJZHTZ"
+        };
+
+        // Inicialização do Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Função para alternar entre abas
+        function showTab(tabName) {
+            // Esconder todas as abas
+            document.querySelectorAll('.content').forEach(content => {
+                content.classList.remove('active');
+            });
+            // Remover a classe 'active' de todas as abas
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // Mostrar a aba selecionada
+            document.getElementById(tabName).classList.add('active');
+            // Ativar a aba no menu
+            document.querySelector(`.tab[onclick="showTab('${tabName}')"]`).classList.add('active');
+        }
+
+        // Função para adicionar um mês
+        async function addMonth() {
+            const monthName = document.getElementById('monthName').value.trim();
+            const processCount = document.getElementById('monthProcessCount').value.trim();
+            const over80 = document.getElementById('monthOver80').value.trim();
+            const legalPriority = document.getElementById('monthLegalPriority').value.trim();
+
+            if (!monthName || !processCount || isNaN(processCount)) {
+                alert('Por favor, preencha todos os campos corretamente.');
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "months"), {
+                    name: monthName,
+                    processes: parseInt(processCount, 10),
+                    over80: parseInt(over80 || 0, 10),
+                    legalPriority: parseInt(legalPriority || 0, 10)
+                });
+                alert('Mês adicionado com sucesso!');
+                renderMonths();
+            } catch (error) {
+                console.error('Erro ao adicionar mês: ', error);
+                alert('Erro ao adicionar mês.');
+            }
+        }
+
+        // Função para renderizar os meses
+        async function renderMonths() {
+            const monthsList = document.getElementById('months-list');
+            monthsList.innerHTML = '';
+
+            const querySnapshot = await getDocs(collection(db, "months"));
+            querySnapshot.forEach((doc) => {
+                const month = doc.data();
+                const monthDiv = document.createElement('div');
+                monthDiv.className = 'month-item';
+                monthDiv.innerHTML = `
+                    <input type="text" value="${month.name}" onchange="updateMonth('${doc.id}', 'name', this.value)">
+                    <input type="number" value="${month.processes}" onchange="updateMonth('${doc.id}', 'processes', this.value)">
+                    <input type="number" value="${month.over80}" onchange="updateMonth('${doc.id}', 'over80', this.value)" placeholder="Maiores de 80">
+                    <input type="number" value="${month.legalPriority}" onchange="updateMonth('${doc.id}', 'legalPriority', this.value)" placeholder="Prioridade Legal">
+                    <button onclick="saveMonth('${doc.id}')">Salvar Edição</button>
+                    <button class="delete-button" onclick="deleteMonth('${doc.id}')">Excluir</button>
+                `;
+                monthsList.appendChild(monthDiv);
+            });
+        }
+
+        // Função para atualizar um mês
+        async function updateMonth(docId, field, value) {
+            try {
+                await updateDoc(doc(db, "months", docId), { [field]: value });
+                console.log('Mês atualizado com sucesso!');
+            } catch (error) {
+                console.error('Erro ao atualizar mês: ', error);
+            }
+        }
+
+        // Função para excluir um mês
+        async function deleteMonth(docId) {
+            try {
+                await deleteDoc(doc(db, "months", docId));
+                alert('Mês excluído com sucesso!');
+                renderMonths();
+            } catch (error) {
+                console.error('Erro ao excluir mês: ', error);
+            }
+        }
+
+        // Função para adicionar um objeto
+        async function addObject() {
+            const objectName = document.getElementById('objectName').value.trim();
+            const processCount = document.getElementById('objectProcessCount').value.trim();
+            const over80 = document.getElementById('objectOver80').value.trim();
+            const legalPriority = document.getElementById('objectLegalPriority').value.trim();
+
+            if (!objectName || !processCount || isNaN(processCount)) {
+                alert('Por favor, preencha todos os campos corretamente.');
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "objects"), {
+                    name: objectName,
+                    processes: parseInt(processCount, 10),
+                    over80: parseInt(over80 || 0, 10),
+                    legalPriority: parseInt(legalPriority || 0, 10)
+                });
+                alert('Objeto adicionado com sucesso!');
+                renderObjects();
+            } catch (error) {
+                console.error('Erro ao adicionar objeto: ', error);
+                alert('Erro ao adicionar objeto.');
+            }
+        }
+
+        // Função para renderizar os objetos
+        async function renderObjects() {
+            const objectsList = document.getElementById('objects-list');
+            objectsList.innerHTML = '';
+
+            const querySnapshot = await getDocs(collection(db, "objects"));
+            querySnapshot.forEach((doc) => {
+                const object = doc.data();
+                const objectDiv = document.createElement('div');
+                objectDiv.className = 'object-item';
+                objectDiv.innerHTML = `
+                    <input type="text" value="${object.name}" onchange="updateObject('${doc.id}', 'name', this.value)">
+                    <input type="number" value="${object.processes}" onchange="updateObject('${doc.id}', 'processes', this.value)">
+                    <input type="number" value="${object.over80}" onchange="updateObject('${doc.id}', 'over80', this.value)" placeholder="Maiores de 80">
+                    <input type="number" value="${object.legalPriority}" onchange="updateObject('${doc.id}', 'legalPriority', this.value)" placeholder="Prioridade Legal">
+                    <button onclick="saveObject('${doc.id}')">Salvar Edição</button>
+                    <button class="delete-button" onclick="deleteObject('${doc.id}')">Excluir</button>
+                `;
+                objectsList.appendChild(objectDiv);
+            });
+        }
+
+        // Função para atualizar um objeto
+        async function updateObject(docId, field, value) {
+            try {
+                await updateDoc(doc(db, "objects", docId), { [field]: value });
+                console.log('Objeto atualizado com sucesso!');
+            } catch (error) {
+                console.error('Erro ao atualizar objeto: ', error);
+            }
+        }
+
+        // Função para excluir um objeto
+        async function deleteObject(docId) {
+            try {
+                await deleteDoc(doc(db, "objects", docId));
+                alert('Objeto excluído com sucesso!');
+                renderObjects();
+            } catch (error) {
+                console.error('Erro ao excluir objeto: ', error);
+            }
+        }
+
+        // Função para adicionar um pedido de prioridade
+        async function addPriority() {
+            const processNumber = document.getElementById('processNumber').value.trim();
+            const requestDate = document.getElementById('requestDate').value.trim();
+            const receiptDate = document.getElementById('receiptDate').value.trim();
+            const responsible = document.getElementById('responsible').value.trim();
+            const additionalInfo = document.getElementById('additionalInfo').value.trim();
+
+            if (!processNumber || !requestDate || !receiptDate || !responsible) {
+                alert('Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "priorities"), {
+                    processNumber,
+                    requestDate,
+                    receiptDate,
+                    responsible,
+                    additionalInfo,
+                    active: false
+                });
+                alert('Pedido de prioridade adicionado com sucesso!');
+                renderPriorities();
+            } catch (error) {
+                console.error('Erro ao adicionar pedido de prioridade: ', error);
+                alert('Erro ao adicionar pedido de prioridade.');
+            }
+        }
+
+        // Função para renderizar os pedidos de prioridade
+        async function renderPriorities() {
+            const priorityList = document.getElementById('priority-list');
+            priorityList.innerHTML = '';
+
+            const querySnapshot = await getDocs(collection(db, "priorities"));
+            querySnapshot.forEach((doc) => {
+                const priority = doc.data();
+                const priorityDiv = document.createElement('div');
+                priorityDiv.className = `priority-item ${priority.active ? 'active' : ''}`;
+                priorityDiv.innerHTML = `
+                    <span>Nº Processo: ${priority.processNumber}</span>
+                    <span>Data do Pedido: ${formatDate(priority.requestDate)}</span>
+                    <span>Data de Recebimento: ${formatDate(priority.receiptDate)}</span>
+                    <span>Responsável: ${priority.responsible}</span>
+                    <span>Informação Adicional: ${priority.additionalInfo}</span>
+                    <button class="toggle-button" onclick="togglePriority('${doc.id}', ${!priority.active})">
+                        ${priority.active ? 'Desativar Prioridade' : 'Ativar Prioridade'} (${priority.processNumber})
+                    </button>
+                    <button class="delete-button" onclick="deletePriority('${doc.id}')">Excluir</button>
+                `;
+                priorityList.appendChild(priorityDiv);
+            });
+        }
+
+        // Função para alternar o estado de uma prioridade
+        async function togglePriority(docId, active) {
+            try {
+                await updateDoc(doc(db, "priorities", docId), { active });
+                renderPriorities();
+            } catch (error) {
+                console.error('Erro ao alternar prioridade: ', error);
+            }
+        }
+
+        // Função para excluir um pedido de prioridade
+        async function deletePriority(docId) {
+            try {
+                await deleteDoc(doc(db, "priorities", docId));
+                alert('Pedido de prioridade excluído com sucesso!');
+                renderPriorities();
+            } catch (error) {
+                console.error('Erro ao excluir pedido de prioridade: ', error);
+            }
+        }
+
+        // Função para renderizar os usuários cadastrados
+        async function renderUsers() {
+            const usersList = document.getElementById('users-list');
+            usersList.innerHTML = '';
+
+            const querySnapshot = await getDocs(collection(db, "users"));
+            querySnapshot.forEach((doc) => {
+                const user = doc.data();
+                const userDiv = document.createElement('div');
+                userDiv.className = `user-item ${user.active ? '' : 'inactive'}`;
+                userDiv.innerHTML = `
+                    <span>Usuário: ${user.username}</span>
+                    <button class="toggle-button" onclick="toggleUser('${doc.id}', ${!user.active})">
+                        ${user.active ? 'Desativar' : 'Ativar'}
+                    </button>
+                    <button class="delete-button" onclick="deleteUser('${doc.id}')">Excluir</button>
+                `;
+                usersList.appendChild(userDiv);
+            });
+        }
+
+        // Função para alternar o estado de um usuário
+        async function toggleUser(docId, active) {
+            try {
+                await updateDoc(doc(db, "users", docId), { active });
+                renderUsers();
+            } catch (error) {
+                console.error('Erro ao alternar usuário: ', error);
+            }
+        }
+
+        // Função para excluir um usuário
+        async function deleteUser(docId) {
+            try {
+                await deleteDoc(doc(db, "users", docId));
+                alert('Usuário excluído com sucesso!');
+                renderUsers();
+            } catch (error) {
+                console.error('Erro ao excluir usuário: ', error);
+            }
+        }
+
+        // Função para formatar a data no formato dd/mm/aaaa
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        // Função para sair
+        function logout() {
+            localStorage.removeItem('loggedInUser');
+            window.location.href = 'index.html';
+        }
+
+        // Tornar as funções globais para que possam ser chamadas no HTML
+        window.showTab = showTab;
+        window.addMonth = addMonth;
+        window.updateMonth = updateMonth;
+        window.deleteMonth = deleteMonth;
+        window.addObject = addObject;
+        window.updateObject = updateObject;
+        window.deleteObject = deleteObject;
+        window.addPriority = addPriority;
+        window.togglePriority = togglePriority;
+        window.deletePriority = deletePriority;
+        window.renderUsers = renderUsers;
+        window.toggleUser = toggleUser;
+        window.deleteUser = deleteUser;
+        window.logout = logout;
+
+        // Renderizar dados ao carregar a página
+        renderMonths();
+        renderObjects();
+        renderPriorities();
+        renderUsers();
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Portal SECAJ - Área do Administrador</h1>
+        <div class="user-info">
+            <button class="logout-button" onclick="logout()">Sair</button>
+        </div>
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('quantitative')">Quantitativo de Processos</div>
+            <div class="tab" onclick="showTab('objects')">Objetos e Quantidades</div>
+            <div class="tab" onclick="showTab('priority')">Pedidos de Prioridades</div>
+            <div class="tab" onclick="showTab('users')">Usuários Cadastrados</div>
+        </div>
+    </header>
+
+    <!-- Aba de Quantitativo de Processos -->
+    <div class="content active" id="quantitative">
+        <h2>Quantitativo de Processos e Seus Objetos</h2>
+        <div class="add-form">
+            <input type="text" id="monthName" placeholder="Nome do Mês">
+            <input type="number" id="monthProcessCount" placeholder="Quantidade de Processos">
+            <input type="number" id="monthOver80" placeholder="Maiores de 80">
+            <input type="number" id="monthLegalPriority" placeholder="Processos com Prioridade Legal">
+            <button onclick="addMonth()">Salvar Mês</button>
+        </div>
+        <div id="months-list"></div>
+    </div>
+
+    <!-- Aba de Objetos e Quantidades -->
+    <div class="content" id="objects">
+        <h2>Objetos e Quantidades de Processos</h2>
+        <div class="add-form">
+            <input type="text" id="objectName" placeholder="Nome do Objeto">
+            <input type="number" id="objectProcessCount" placeholder="Quantidade de Processos">
+            <input type="number" id="objectOver80" placeholder="Maiores de 80">
+            <input type="number" id="objectLegalPriority" placeholder="Processos com Prioridade Legal">
+            <button onclick="addObject()">Salvar Objeto</button>
+        </div>
+        <div id="objects-list"></div>
+    </div>
+
+    <!-- Aba de Pedidos de Prioridades -->
+    <div class="content" id="priority">
+        <h2>Pedidos de Prioridades</h2>
+        <div class="add-form">
+            <label for="processNumber">Número do Processo:</label>
+            <input type="text" id="processNumber" placeholder="Número do Processo">
+            <label for="requestDate">Data do Pedido:</label>
+            <input type="date" id="requestDate">
+            <label for="receiptDate">Data de Recebimento do Processo pela SECAJ:</label>
+            <input type="date" id="receiptDate">
+            <label for="responsible">Responsável pelo Processo:</label>
+            <input type="text" id="responsible" placeholder="Responsável pelo Processo">
+            <label for="additionalInfo">Informação Adicional:</label>
+            <input type="text" id="additionalInfo" placeholder="Informação Adicional">
+            <button onclick="addPriority()">Salvar Pedido</button>
+        </div>
+        <div id="priority-list"></div>
+    </div>
+
+    <!-- Aba de Usuários Cadastrados -->
+    <div class="content" id="users">
+        <h2>Usuários Cadastrados</h2>
+        <div id="users-list"></div>
+    </div>
+
+    <script>
+        // Registrar o Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then((registration) => {
+                    console.log('Service Worker registrado com sucesso:', registration);
+                })
+                .catch((error) => {
+                    console.log('Falha ao registrar o Service Worker:', error);
+                });
+        }
+    </script>
+</body>
+</html>

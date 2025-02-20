@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal do Usuário - SECAJ</title>
+    <!-- Inclua a biblioteca Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Inclua a biblioteca html2canvas para exportar gráficos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Inclua a biblioteca jsPDF para gerar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Ícone de menu (Font Awesome) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Manifest do PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Importações do Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD1wD2KTGnM0vWqs8eGiFLQdOaQh77a5uw",
+            authDomain: "portal-secaj.firebaseapp.com",
+            projectId: "portal-secaj",
+            storageBucket: "portal-secaj.appspot.com",
+            messagingSenderId: "580471459735",
+            appId: "1:580471459735:web:3092f388f6d4b3b48afed2",
+            measurementId: "G-CYSXWJZHTZ"
+        };
+
+        // Inicialização do Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Função para buscar e exibir pedidos de prioridades
+        async function renderPriorities() {
+            const prioritiesList = document.getElementById('priorities-list');
+            prioritiesList.innerHTML = '';
+
+            const querySnapshot = await getDocs(collection(db, "priorities"));
+            querySnapshot.forEach((doc) => {
+                const priority = doc.data();
+                const priorityCard = document.createElement('div');
+                priorityCard.className = 'priority-card';
+                if (priority.active) {
+                    priorityCard.classList.add('priority-legal');
+                }
+                priorityCard.innerHTML = `
+                    <div class="priority-card-content">
+                        <p><strong>Nº Processo:</strong> ${priority.processNumber}</p>
+                        <p><strong>Data do Pedido:</strong> ${priority.requestDate}</p>
+                        <p><strong>Data de Recebimento:</strong> ${priority.receiptDate}</p>
+                        <p><strong>Responsável:</strong> ${priority.responsible}</p>
+                        <p><strong>Informação Adicional:</strong> ${priority.additionalInfo}</p>
+                        ${priority.active ? '<div class="priority-stamp">Processo com prioridade legal</div>' : ''}
+                    </div>
+                `;
+                prioritiesList.appendChild(priorityCard);
+            });
+        }
+
+        // Função para buscar e exibir os meses cadastrados
+        async function renderMonths() {
+            const monthsCharts = document.getElementById('months-charts');
+            monthsCharts.innerHTML = '';
+
+            const querySnapshot = await getDocs(collection(db, "months"));
+            querySnapshot.forEach((doc, index) => {
+                const month = doc.data();
+                const chartRow = document.createElement('div');
+                chartRow.className = 'chart-row';
+                chartRow.innerHTML = `
+                    <div class="chart-title">${month.name}</div>
+                    <div class="chart-container bar">
+                        <canvas id="bar-chart-${doc.id}"></canvas>
+                    </div>
+                    <div class="chart-container pie">
+                        <canvas id="pie-chart-${doc.id}"></canvas>
+                    </div>
+                    <div class="table-container">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>Categoria</th>
+                                    <th>Quantidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Processos Totais</td>
+                                    <td>${month.processes}</td>
+                                </tr>
+                                <tr>
+                                    <td>Maiores de 80</td>
+                                    <td>${month.over80}</td>
+                                </tr>
+                                <tr>
+                                    <td>Prioridade Legal</td>
+                                    <td>${month.legalPriority}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <hr class="separator">
+                `;
+                monthsCharts.appendChild(chartRow);
+
+                // Renderizar gráficos
+                renderHorizontalBarChart(`bar-chart-${doc.id}`, [month], [month.name]);
+                renderPieChart(`pie-chart-${doc.id}`, month);
+            });
+        }
+
+        // Função para buscar e exibir os objetos cadastrados
+        async function renderObjects() {
+            const objectsCharts = document.getElementById('objects-charts');
+            objectsCharts.innerHTML = '';
+
+            const querySnapshot = await getDocs(collection(db, "objects"));
+            querySnapshot.forEach((doc, index) => {
+                const object = doc.data();
+                const chartRow = document.createElement('div');
+                chartRow.className = 'chart-row';
+                chartRow.innerHTML = `
+                    <div class="chart-title">${object.name}</div>
+                    <div class="chart-container bar">
+                        <canvas id="bar-chart-obj-${doc.id}"></canvas>
+                    </div>
+                    <div class="chart-container pie">
+                        <canvas id="pie-chart-obj-${doc.id}"></canvas>
+                    </div>
+                    <div class="table-container">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>Categoria</th>
+                                    <th>Quantidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Processos Totais</td>
+                                    <td>${object.processes}</td>
+                                </tr>
+                                <tr>
+                                    <td>Maiores de 80</td>
+                                    <td>${object.over80}</td>
+                                </tr>
+                                <tr>
+                                    <td>Prioridade Legal</td>
+                                    <td>${object.legalPriority}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <hr class="separator">
+                `;
+                objectsCharts.appendChild(chartRow);
+
+                // Renderizar gráficos
+                renderHorizontalBarChart(`bar-chart-obj-${doc.id}`, [object], [object.name]);
+                renderPieChart(`pie-chart-obj-${doc.id}`, object);
+            });
+        }
+
+        // Função para renderizar gráficos de barras horizontais
+        function renderHorizontalBarChart(canvasId, data, labels) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Processos Totais',
+                        data: data.map(item => item.processes),
+                        backgroundColor: '#36a2eb',
+                        borderColor: '#36a2eb',
+                        borderWidth: 1
+                    }, {
+                        label: 'Maiores de 80',
+                        data: data.map(item => item.over80),
+                        backgroundColor: '#ff6384',
+                        borderColor: '#ff6384',
+                        borderWidth: 1
+                    }, {
+                        label: 'Prioridade Legal',
+                        data: data.map(item => item.legalPriority),
+                        backgroundColor: '#4bc0c0',
+                        borderColor: '#4bc0c0',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#ddd',
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: '#ddd',
+                            }
+                        }
+                    },
+                    plugins: {
+                        datalabels: {
+                            display: true,
+                            color: '#333',
+                            anchor: 'end',
+                            align: 'end',
+                            offset: 10
+                        }
+                    }
+                }
+            });
+        }
+
+        // Função para renderizar gráficos de pizza
+        function renderPieChart(canvasId, data) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Processos Totais', 'Maiores de 80', 'Prioridade Legal'],
+                    datasets: [{
+                        data: [data.processes, data.over80, data.legalPriority],
+                        backgroundColor: ['#36a2eb', '#ff6384', '#4bc0c0'],
+                        borderColor: ['#36a2eb', '#ff6384', '#4bc0c0'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        },
+                        tooltip: {
+                            enabled: true,
+                        }
+                    }
+                }
+            });
+        }
+
+        // Função para alternar entre abas
+        function showTab(tabName) {
+            // Esconder todas as abas
+            document.querySelectorAll('.content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Mostrar a aba selecionada
+            document.getElementById(tabName).classList.add('active');
+
+            // Esconder a mensagem de boas-vindas ao clicar em qualquer aba
+            document.querySelector('.welcome-message').style.display = 'none';
+
+            // Renderizar os dados da aba selecionada
+            if (tabName === 'priorities') {
+                renderPriorities();
+            } else if (tabName === 'objects') {
+                renderObjects();
+            } else if (tabName === 'unify-documents') {
+                renderUnifyDocuments();
+            } else if (tabName === 'months') {
+                renderMonths();
+            }
+
+            // Alterar a imagem de fundo ao clicar em uma aba
+            setRandomBackground();
+
+            // Recolher o menu após selecionar uma aba
+            toggleMenu();
+        }
+
+        // Função para sair
+        function logout() {
+            localStorage.removeItem('loggedInUser');
+            window.location.href = 'index.html';
+        }
+
+        // Função para exportar para PDF
+        async function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Adicionar informações no topo do PDF
+            const userName = localStorage.getItem('loggedInUser') || "Usuário";
+            const exportTime = new Date().toLocaleString();
+            doc.setFontSize(12);
+            doc.text(`Relatório SECAJ`, 10, 10);
+            doc.text(`Exportado por: ${userName}`, 10, 20);
+            doc.text(`Data e Hora: ${exportTime}`, 10, 30);
+
+            // Capturar e adicionar gráficos ao PDF
+            const charts = document.querySelectorAll('.chart-container canvas');
+            for (let i = 0; i < charts.length; i++) {
+                const canvas = charts[i];
+                const image = await html2canvas(canvas, { scale: 2, useCORS: true });
+                const imgData = image.toDataURL('image/png');
+                doc.addPage();
+                doc.addImage(imgData, 'PNG', 10, 10, 180, 100);
+            }
+
+            // Salvar o PDF
+            doc.save("Relatorio_SECAJ.pdf");
+        }
+
+        // Função para renderizar a aba de unificação de documentos
+        function renderUnifyDocuments() {
+            const unifyDocumentsContent = document.getElementById('unify-documents-content');
+            unifyDocumentsContent.innerHTML = `
+                <h2>Unificar Documentos</h2>
+                <input type="file" id="fileInput" accept="application/pdf" multiple>
+                <h3>Arquivos Enviados:</h3>
+                <ul id="fileList"></ul>
+                <button onclick="mergePDFs()">Unificar PDFs</button>
+                <div id="loading-bar" style="display: none;">
+                    <div class="loading-bar-inner"></div>
+                </div>
+            `;
+
+            // Adicionar evento ao input de arquivos
+            document.getElementById('fileInput').addEventListener('change', async function (event) {
+                let files = event.target.files;
+                let fileList = document.getElementById('fileList');
+                fileList.innerHTML = '';
+
+                for (let file of files) {
+                    let listItem = document.createElement('li');
+                    listItem.textContent = file.name;
+                    fileList.appendChild(listItem);
+                }
+            });
+        }
+
+        // Função para unificar PDFs
+        async function mergePDFs() {
+            const files = document.getElementById('fileInput').files;
+            if (files.length === 0) {
+                alert("Nenhum arquivo para unificar.");
+                return;
+            }
+
+            const mergedPdf = await PDFLib.PDFDocument.create();
+
+            for (let file of files) {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await PDFLib.PDFDocument.load(arrayBuffer);
+                const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                copiedPages.forEach((page) => mergedPdf.addPage(page));
+            }
+
+            const mergedPdfBytes = await mergedPdf.save();
+            const blob = new Blob([mergedPdfBytes], { type: "application/pdf" });
+            const url = URL.createObjectURL(blob);
+
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = "PDF_Unificado.pdf";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Função para alternar o menu
+        function toggleMenu() {
+            document.querySelector('.drop-down').classList.toggle('drop-down--active');
+        }
+
+        // Função para escolher uma imagem de fundo aleatória
+        function setRandomBackground() {
+            const images = [
+                'imagens/imagem1.jpg',
+                'imagens/imagem2.jpg',
+                'imagens/imagem3.jpg',
+                'imagens/imagem4.jpg',
+                'imagens/imagem5.jpg',
+                'imagens/imagem6.jpg',
+                'imagens/imagem7.jpg'
+            ];
+            const randomImage = images[Math.floor(Math.random() * images.length)];
+            document.body.style.backgroundImage = `url('${randomImage}')`;
+        }
+
+        // Tornar as funções globais para que possam ser chamadas no HTML
+        window.showTab = showTab;
+        window.logout = logout;
+        window.exportToPDF = exportToPDF;
+        window.mergePDFs = mergePDFs;
+        window.toggleMenu = toggleMenu;
+
+        // Renderizar dados ao carregar a página
+        window.onload = () => {
+            const loggedInUser = localStorage.getItem('loggedInUser');
+            if (loggedInUser) {
+                // Exibir o nome do usuário no menu
+                document.getElementById('loggedInUserName').textContent = loggedInUser;
+            }
+
+            // Definir a imagem de fundo ao carregar a página
+            setRandomBackground();
+
+            // Esconder o conteúdo da primeira aba ao iniciar
+            document.getElementById('months').classList.remove('active');
+        };
+    </script>
+    <style>
+        /* Estilos Gerais */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            overflow: hidden;
+        }
+
+        /* Mensagem de boas-vindas */
+        .welcome-message {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            width: 300px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        /* Dropdown Menu */
+        .drop-down {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .drop-down__button {
+            background: linear-gradient(to right, #2a5298, #1e3c72);
+            display: inline-block;
+            line-height: 40px;
+            padding: 0 18px;
+            text-align: left;
+            border-radius: 4px;
+            box-shadow: 0px 4px 6px 0px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            color: white;
+            font-weight: 600;
+        }
+
+        .drop-down__menu-box {
+            position: absolute;
+            width: 200px;
+            left: 0;
+            background: linear-gradient(to bottom, #2a5298, #1e3c72);
+            border-radius: 4px;
+            box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s;
+            visibility: hidden;
+            opacity: 0;
+            margin-top: 5px;
+        }
+
+        .drop-down__menu {
+            margin: 0;
+            padding: 0 13px;
+            list-style: none;
+        }
+
+        .drop-down__menu-box:before {
+            content: '';
+            background-color: transparent;
+            border-right: 8px solid transparent;
+            position: absolute;
+            border-left: 8px solid transparent;
+            border-bottom: 8px solid #2a5298;
+            border-top: 8px solid transparent;
+            top: -15px;
+            right: 18px;
+        }
+
+        .drop-down__item {
+            font-size: 14px;
+            padding: 13px 0;
+            text-align: left;
+            font-weight: 500;
+            color: #fff;
+            cursor: pointer;
+            position: relative;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .drop-down__item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .drop-down__item:last-of-type {
+            border-bottom: 0;
+        }
+
+        .drop-down--active .drop-down__menu-box {
+            visibility: visible;
+            opacity: 1;
+            margin-top: 15px;
+        }
+
+        /* Conteúdo Principal */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            margin-left: 0;
+            transition: margin-left 0.3s;
+            margin-top: 30px;
+            overflow-y: auto;
+            max-height: 80vh;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .content {
+            display: none;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        /* Estilos para as abas de conteúdo */
+        #unify-documents-content {
+            padding: 20px;
+        }
+
+        #fileList {
+            margin-bottom: 20px;
+        }
+
+        #fileList li {
+            display: inline-block;
+            margin: 5px;
+            padding: 8px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+        }
+
+        /* Barra de Carregamento */
+        #loading-bar {
+            width: 100%;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .loading-bar-inner {
+            width: 0;
+            height: 10px;
+            background-color: #28a745;
+            border-radius: 4px;
+            transition: width 2s;
+        }
+
+        /* Estilos para os cartões de prioridades */
+        .priority-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .priority-card.priority-legal {
+            background-color: #ffcccc;
+        }
+
+        .priority-stamp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            font-weight: bold;
+            color: #ff0000;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* Estilos para as tabelas */
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        .styled-table th, .styled-table td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        .styled-table th {
+            background-color: #f4f4f9;
+            font-weight: 600;
+        }
+
+        .styled-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .styled-table tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Dropdown Menu -->
+    <div class="drop-down">
+        <div id="dropDown" class="drop-down__button">
+            <span>Menu</span>
+            <i class="fas fa-bars"></i>
+        </div>
+        <div class="drop-down__menu-box">
+            <ul class="drop-down__menu">
+                <!-- Add the logged-in user's name here -->
+                <li id="loggedInUser" class="drop-down__item" style="font-weight: bold; color: #fff;">
+                    Usuário: <span id="loggedInUserName"></span>
+                </li>
+                <li data-name="months" class="drop-down__item" onclick="showTab('months')">Meses e Processos</li>
+                <li data-name="objects" class="drop-down__item" onclick="showTab('objects')">Objetos e Processos</li>
+                <li data-name="priorities" class="drop-down__item" onclick="showTab('priorities')">Pedidos de Prioridades</li>
+                <li data-name="unify-documents" class="drop-down__item" onclick="showTab('unify-documents')">Unificar Documentos</li>
+                <li class="drop-down__item" onclick="exportToPDF()">Exportar dados em PDF</li>
+                <li class="drop-down__item" onclick="logout()" style="color: #ff0000;">Sair</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Mensagem de boas-vindas -->
+    <div class="welcome-message">
+        Bem vindo ao Portal SECAJ. Clique em MENU e selecione a aba desejada.
+    </div>
+
+    <!-- Conteúdo Principal -->
+    <div class="main-content">
+        <!-- Aba de Meses e Processos -->
+        <div class="content" id="months" hidden>
+            <h2>Quantitativo de Processos por Mês</h2>
+            <div id="months-charts"></div>
+        </div>
+
+        <!-- Aba de Objetos e Processos -->
+        <div class="content" id="objects">
+            <h2>Quantitativo de Processos por Objeto</h2>
+            <div id="objects-charts"></div>
+        </div>
+
+        <!-- Aba de Pedidos de Prioridades -->
+        <div class="content" id="priorities">
+            <h2>Pedidos de Prioridades</h2>
+            <div id="priorities-list"></div>
+        </div>
+
+        <!-- Aba de Unificar Documentos -->
+        <div class="content" id="unify-documents">
+            <div id="unify-documents-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // Script para alternar o dropdown
+        document.getElementById('dropDown').addEventListener('click', function () {
+            toggleMenu();
+        });
+
+        // Registrar o Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then((registration) => {
+                    console.log('Service Worker registrado com sucesso:', registration);
+                })
+                .catch((error) => {
+                    console.log('Falha ao registrar o Service Worker:', error);
+                });
+        }
+    </script>
+</body>
+</html>
